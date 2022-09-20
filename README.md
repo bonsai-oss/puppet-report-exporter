@@ -18,5 +18,5 @@ Flags:
 
 Running inside Docker:
 ```shell
-$ docker run --rm -p 127.0.0.1:9115:9115 -it registry.gitlab.com/bonsai-oss/container/puppet-report-exporter:latest --help
+$ docker run --rm -p 127.0.0.1:9115:9115 -it registry.gitlab.com/bonsai-oss/exporter/puppet-report-exporter:latest --help
 ```
