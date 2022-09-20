@@ -54,7 +54,7 @@ func (app *application) metricsListener(ctx context.Context, done chan any) {
 }
 
 func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done chan any) {
-	flushTicker := time.NewTicker(2 * time.Minute)
+	flushTicker := time.NewTicker(10 * time.Minute)
 	metricUpdateTicker := time.NewTicker(5 * time.Second)
 	for {
 		select {
