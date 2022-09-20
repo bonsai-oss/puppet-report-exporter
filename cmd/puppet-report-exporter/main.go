@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -25,8 +26,7 @@ type application struct {
 	nodeCache     []puppet.Node
 	nodeCacheLock sync.Mutex
 
-	reportLogCache     map[string][]puppet.ReportLogEntry
-	reportLogCacheLock sync.Mutex
+	reportLogCache *ttlcache.Cache[string, []puppet.ReportLogEntry]
 
 	metricServer *http.Server
 	puppetDb     *puppet.ApiClient
@@ -54,22 +54,15 @@ func (app *application) metricsListener(ctx context.Context, done chan any) {
 }
 
 func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done chan any) {
-	flushTicker := time.NewTicker(10 * time.Minute)
-	metricUpdateTicker := time.NewTicker(5 * time.Second)
+	metricUpdateTicker := time.NewTicker(2 * time.Second)
 	for {
 		select {
 		case <-ctx.Done():
-			flushTicker.Stop()
 			metricUpdateTicker.Stop()
 			done <- nil
 			return
 		case <-metricUpdateTicker.C:
-			metrics.PuppetDBReportCacheEntries.Set(float64(len(applicationInstance.reportLogCache)))
-		case <-flushTicker.C:
-			applicationInstance.reportLogCacheLock.Lock()
-			log.Printf("Cleaning report cache: %d entries", len(applicationInstance.reportLogCache))
-			applicationInstance.reportLogCache = make(map[string][]puppet.ReportLogEntry)
-			applicationInstance.reportLogCacheLock.Unlock()
+			metrics.PuppetDBReportCacheEntries.Set(float64(app.reportLogCache.Len()))
 		}
 	}
 }
@@ -89,13 +82,13 @@ func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) work
 					log.Println(getNodesError)
 					continue
 				}
-				applicationInstance.nodeCacheLock.Lock()
-				applicationInstance.nodeCache = nodes
+				app.nodeCacheLock.Lock()
+				app.nodeCache = nodes
 				metrics.NodeCount.Reset()
 				for _, node := range nodes {
 					metrics.NodeCount.With(prometheus.Labels{metrics.LabelEnvironment: node.CatalogEnvironment}).Add(1)
 				}
-				applicationInstance.nodeCacheLock.Unlock()
+				app.nodeCacheLock.Unlock()
 				refreshNotify <- nil
 			}
 		}
@@ -123,19 +116,19 @@ func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any
 						}
 					}
 
-					app.reportLogCacheLock.Lock()
 					var report []puppet.ReportLogEntry
-					if _, foundInCache := applicationInstance.reportLogCache[node.LatestReportHash]; foundInCache {
-						report = applicationInstance.reportLogCache[node.LatestReportHash]
+
+					if item := applicationInstance.reportLogCache.Get(node.LatestReportHash); item != nil {
+						report = item.Value()
 					} else {
 						var reportFetchError error
 						report, reportFetchError = app.puppetDb.GetReportHashInfo(node.LatestReportHash)
 						if reportFetchError != nil {
 							continue
 						}
-						applicationInstance.reportLogCache[node.LatestReportHash] = report
+						applicationInstance.reportLogCache.Set(node.LatestReportHash, report, ttlcache.DefaultTTL)
 					}
-					app.reportLogCacheLock.Unlock()
+
 					for _, l := range puppet.Levels {
 						metrics.NodeLogEntries.With(prometheus.Labels{
 							metrics.LabelEnvironment: node.ReportEnvironment,
@@ -180,8 +173,14 @@ func main() {
 	if applicationInstance.settings.mode == "puppetdb" {
 		nodeRefreshChan := make(chan any)
 		applicationInstance.puppetDb = puppet.NewApiClient(puppet.WithUrl(applicationInstance.settings.puppetdbApiAddress))
-		// initialize puppetdb report log cache
-		applicationInstance.reportLogCache = make(map[string][]puppet.ReportLogEntry)
+
+		// initialize cache
+		applicationInstance.reportLogCache = ttlcache.New[string, []puppet.ReportLogEntry](
+			ttlcache.WithTTL[string, []puppet.ReportLogEntry](10 * time.Minute),
+		)
+		go applicationInstance.reportLogCache.Start()
+		defer applicationInstance.reportLogCache.Stop()
+
 		workers = append(workers, []worker{
 			applicationInstance.puppetdbNodesCrawlerBuilder(nodeRefreshChan),
 			applicationInstance.puppetdbLogMetricCollectorBuilder(nodeRefreshChan),
