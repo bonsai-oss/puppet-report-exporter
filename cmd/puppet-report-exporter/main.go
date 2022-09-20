@@ -76,12 +76,14 @@ func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done 
 
 func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) worker {
 	return func(ctx context.Context, done chan any) {
+		nodeUpdateTicker := time.NewTicker(10 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
+				nodeUpdateTicker.Stop()
 				done <- nil
 				return
-			case <-time.After(10 * time.Second):
+			case <-nodeUpdateTicker.C:
 				nodes, getNodesError := app.puppetDb.GetNodes()
 				if getNodesError != nil {
 					log.Println(getNodesError)
@@ -129,15 +131,25 @@ func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any
 						var reportFetchError error
 						report, reportFetchError = app.puppetDb.GetReportHashInfo(node.LatestReportHash)
 						if reportFetchError != nil {
-							panic(reportFetchError)
+							continue
 						}
 						applicationInstance.reportLogCache[node.LatestReportHash] = report
 					}
 					app.reportLogCacheLock.Unlock()
-					metrics.NodeErrors.With(prometheus.Labels{metrics.LabelNode: node.Certname, metrics.LabelEnvironment: node.ReportEnvironment}).Set(0)
-					for _, logEntry := range report {
-						if logEntry.Level == "err" {
-							metrics.NodeErrors.With(prometheus.Labels{metrics.LabelNode: node.Certname, metrics.LabelEnvironment: node.ReportEnvironment}).Add(1)
+					for _, l := range puppet.Levels {
+						metrics.NodeLogEntries.With(prometheus.Labels{
+							metrics.LabelEnvironment: node.ReportEnvironment,
+							metrics.LabelNode:        node.Certname,
+							metrics.LabelLevel:       string(l),
+						}).Set(0)
+						for _, logEntry := range report {
+							if logEntry.Level == string(l) {
+								metrics.NodeLogEntries.With(prometheus.Labels{
+									metrics.LabelNode:        node.Certname,
+									metrics.LabelEnvironment: node.ReportEnvironment,
+									metrics.LabelLevel:       string(l),
+								}).Add(1)
+							}
 						}
 					}
 				}

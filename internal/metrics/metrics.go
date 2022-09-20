@@ -8,7 +8,7 @@ func init() {
 	// Register the metrics to prometheus.
 	prometheus.MustRegister(
 		NodeCount,
-		NodeErrors,
+		NodeLogEntries,
 		PuppetDBReportCacheEntries,
 	)
 }
@@ -16,35 +16,42 @@ func init() {
 const (
 	LabelEnvironment = "environment"
 	LabelNode        = "node"
+	LabelLevel       = "level"
 )
 
-var NodeCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-	Namespace: "puppet",
-	Subsystem: "report_exporter",
-	Name:      "node_count",
-	Help:      "Number of nodes per environment",
-},
-	[]string{
-		LabelEnvironment,
-	},
-)
+var (
+	NodeCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "puppet",
+			Subsystem: "report_exporter",
+			Name:      "node_count",
+			Help:      "Number of nodes per environment",
+		},
+		[]string{
+			LabelEnvironment,
+		},
+	)
 
-var NodeErrors = prometheus.NewGaugeVec(
-	prometheus.GaugeOpts{
-		Namespace: "puppet",
-		Subsystem: "report_exporter",
-		Name:      "node_errors",
-		Help:      "status of nodes",
-	},
-	[]string{
-		LabelEnvironment,
-		LabelNode,
-	},
-)
+	NodeLogEntries = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "puppet",
+			Subsystem: "report_exporter",
+			Name:      "node_log_entries",
+			Help:      "status of nodes",
+		},
+		[]string{
+			LabelEnvironment,
+			LabelLevel,
+			LabelNode,
+		},
+	)
 
-var PuppetDBReportCacheEntries = prometheus.NewGauge(prometheus.GaugeOpts{
-	Namespace: "puppet",
-	Subsystem: "report_exporter",
-	Name:      "puppetdb_report_cache_entries",
-	Help:      "Number of entries in the report log cache",
-})
+	PuppetDBReportCacheEntries = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "puppet",
+			Subsystem: "report_exporter",
+			Name:      "puppetdb_report_cache_entries",
+			Help:      "Number of entries in the report log cache",
+		},
+	)
+)

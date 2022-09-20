@@ -33,3 +33,27 @@ type ReportLogEntry struct {
 	Source  string      `json:"source"`
 	Message string      `json:"message"`
 }
+
+type Level string
+
+const (
+	LevelDebug   Level = "debug"
+	LevelInfo    Level = "info"
+	LevelNotice  Level = "notice"
+	LevelWarning Level = "warning"
+	LevelErr     Level = "err"
+	LevelAlert   Level = "alert"
+	LevelEmerg   Level = "emerg"
+	LevelCrit    Level = "crit"
+)
+
+var Levels = []Level{
+	LevelDebug,
+	LevelInfo,
+	LevelNotice,
+	LevelWarning,
+	LevelErr,
+	LevelAlert,
+	LevelEmerg,
+	LevelCrit,
+}
