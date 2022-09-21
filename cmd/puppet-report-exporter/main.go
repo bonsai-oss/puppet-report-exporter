@@ -119,9 +119,11 @@ func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any
 					var report []puppet.ReportLogEntry
 
 					if item := applicationInstance.reportLogCache.Get(node.LatestReportHash); item != nil {
+						go metrics.PuppetDBReportCacheAccess.With(prometheus.Labels{metrics.LabelType: "hit"}).Add(1)
 						report = item.Value()
 					} else {
 						var reportFetchError error
+						go metrics.PuppetDBReportCacheAccess.With(prometheus.Labels{metrics.LabelType: "miss"}).Add(1)
 						report, reportFetchError = app.puppetDb.GetReportHashInfo(node.LatestReportHash)
 						if reportFetchError != nil {
 							continue

@@ -10,6 +10,8 @@ func init() {
 		NodeCount,
 		NodeLogEntries,
 		PuppetDBReportCacheEntries,
+		PuppetDBReportCacheAccess,
+		PuppetDBQueries,
 	)
 }
 
@@ -17,6 +19,8 @@ const (
 	LabelEnvironment = "environment"
 	LabelNode        = "node"
 	LabelLevel       = "level"
+	LabelType        = "type"
+	LabelEndpoint    = "endpoint"
 )
 
 var (
@@ -52,6 +56,30 @@ var (
 			Subsystem: "report_exporter",
 			Name:      "puppetdb_report_cache_entries",
 			Help:      "Number of entries in the report log cache",
+		},
+	)
+
+	PuppetDBReportCacheAccess = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "puppet",
+			Subsystem: "report_exporter",
+			Name:      "puppetdb_report_cache_access",
+			Help:      "Number of accesses in the report log cache",
+		},
+		[]string{
+			LabelType,
+		},
+	)
+
+	PuppetDBQueries = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "puppet",
+			Subsystem: "report_exporter",
+			Name:      "puppetdb_queries",
+			Help:      "Number of queries to the PuppetDB API",
+		},
+		[]string{
+			LabelEndpoint,
 		},
 	)
 )

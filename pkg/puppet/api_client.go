@@ -6,6 +6,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/bonsai-oss/puppet-report-exporter/internal/metrics"
 )
 
 type ApiClient struct {
@@ -40,6 +44,7 @@ func NewApiClient(options ...ApiClientOption) *ApiClient {
 // GetNodes - Get all nodes from the PuppetDB API
 func (client *ApiClient) GetNodes() ([]Node, error) {
 	var nodes []Node
+	go metrics.PuppetDBQueries.With(prometheus.Labels{metrics.LabelEndpoint: "nodes"}).Inc()
 	response, err := http.Get(client.url.JoinPath("pdb/query/v4/nodes").String())
 	if err != nil {
 		return nil, err
@@ -57,6 +62,7 @@ func (client *ApiClient) GetNodes() ([]Node, error) {
 }
 
 func (client *ApiClient) GetReportHashInfo(hash string) ([]ReportLogEntry, error) {
+	go metrics.PuppetDBQueries.With(prometheus.Labels{metrics.LabelEndpoint: "reports"}).Inc()
 	response, reportFetchError := http.Get(client.url.JoinPath("pdb/query/v4/reports", hash, "logs").String())
 	if reportFetchError != nil {
 		return nil, reportFetchError
