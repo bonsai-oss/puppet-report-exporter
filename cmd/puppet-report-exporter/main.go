@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/mux"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -79,6 +81,7 @@ func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) work
 			case <-nodeUpdateTicker.C:
 				nodes, getNodesError := app.puppetDb.GetNodes()
 				if getNodesError != nil {
+					sentry.CaptureException(getNodesError)
 					log.Println(getNodesError)
 					continue
 				}
@@ -107,6 +110,8 @@ func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any
 				applicationInstance.nodeCacheLock.Lock()
 				for _, node := range applicationInstance.nodeCache {
 					if node.LatestReportHash == "" {
+						sentry.CaptureMessage(fmt.Sprintf("Node %s has no latest report hash", node.Certname))
+						log.Println("node", node.Certname, "has no latest report hash")
 						continue
 					}
 
@@ -126,6 +131,8 @@ func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any
 						go metrics.PuppetDBReportCacheAccess.With(prometheus.Labels{metrics.LabelType: "miss"}).Add(1)
 						report, reportFetchError = app.puppetDb.GetReportHashInfo(node.LatestReportHash)
 						if reportFetchError != nil {
+							sentry.CaptureException(reportFetchError)
+							log.Println(reportFetchError)
 							continue
 						}
 						applicationInstance.reportLogCache.Set(node.LatestReportHash, report, ttlcache.DefaultTTL)
@@ -168,6 +175,10 @@ func init() {
 }
 
 func main() {
+	// initialize sentry instrumentation
+	sentry.Init(sentry.ClientOptions{TracesSampleRate: 1.0, Transport: sentry.NewHTTPSyncTransport()})
+	defer sentry.Flush(2 * time.Second)
+
 	workers := []worker{
 		applicationInstance.metricsListener,
 	}
