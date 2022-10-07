@@ -175,6 +175,9 @@ func init() {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Llongfile)
+	log.SetOutput(os.Stdout)
+
 	// initialize sentry instrumentation
 	sentry.Init(sentry.ClientOptions{TracesSampleRate: 1.0, Transport: sentry.NewHTTPSyncTransport()})
 	defer sentry.Flush(2 * time.Second)
