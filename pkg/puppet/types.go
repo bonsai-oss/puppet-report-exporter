@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+type ReportData struct {
+	Host        string           `yaml:"host"`
+	Logs        []ReportLogEntry `yaml:"logs"`
+	Environment string           `yaml:"environment"`
+}
+
 type Node struct {
 	Deactivated                  interface{} `json:"deactivated"`
 	LatestReportHash             string      `json:"latest_report_hash"`
@@ -25,13 +31,13 @@ type Node struct {
 
 // ReportLogEntry - representation of https://puppet.com/docs/puppet/7/format_report.html#format_report-puppet-util-log
 type ReportLogEntry struct {
-	File    interface{} `json:"file"`
-	Line    interface{} `json:"line"`
-	Tags    []string    `json:"tags"`
-	Time    time.Time   `json:"time"`
-	Level   string      `json:"level"`
-	Source  string      `json:"source"`
-	Message string      `json:"message"`
+	File    interface{} `json:"file" yaml:"file"`
+	Line    interface{} `json:"line" yaml:"line"`
+	Tags    []string    `json:"tags" yaml:"tags"`
+	Time    time.Time   `json:"time" yaml:"time"`
+	Level   string      `json:"level" yaml:"level"`
+	Source  string      `json:"source" yaml:"source"`
+	Message string      `json:"message" yaml:"message"`
 }
 
 type Level string

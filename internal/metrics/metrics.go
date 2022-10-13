@@ -12,6 +12,8 @@ func init() {
 		PuppetDBReportCacheEntries,
 		PuppetDBReportCacheAccess,
 		PuppetDBQueries,
+		RequestResponseStatus,
+		RequestDuration,
 	)
 }
 
@@ -21,6 +23,7 @@ const (
 	LabelLevel       = "level"
 	LabelType        = "type"
 	LabelEndpoint    = "endpoint"
+	LabelCode        = "code"
 )
 
 var (
@@ -82,4 +85,23 @@ var (
 			LabelEndpoint,
 		},
 	)
+
+	RequestResponseStatus = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "puppet",
+		Subsystem: "report_exporter",
+		Name:      "response_status",
+		Help:      "Number of report queries to the report exporter",
+	},
+		[]string{
+			LabelCode,
+		},
+	)
+
+	RequestDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Namespace: "puppet",
+		Subsystem: "report_exporter",
+		Name:      "request_duration",
+		Help:      "Duration of report requests to the report exporter",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 15),
+	})
 )
