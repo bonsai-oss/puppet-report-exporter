@@ -11,14 +11,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bonsai-oss/jsonstatus"
 	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/mux"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/bonsai-oss/puppet-report-exporter/internal/metrics"
+	"github.com/bonsai-oss/puppet-report-exporter/internal/middleware"
 	"github.com/bonsai-oss/puppet-report-exporter/pkg/puppet"
 )
 
@@ -38,6 +41,7 @@ type settings struct {
 	puppetdbApiAddress   string
 	puppetdbInitialFetch bool
 	mode                 string
+	reportListenAddress  string
 }
 type worker func(ctx context.Context, done chan any)
 
@@ -51,6 +55,37 @@ func (app *application) metricsListener(ctx context.Context, done chan any) {
 	log.Println("Starting metric endpoint on", applicationInstance.settings.webListenAddress)
 	if err := app.metricServer.ListenAndServe(); err != nil {
 		log.Println(err)
+		done <- nil
+	}
+}
+
+func (app *application) reportListenerBuilder(messageChan chan puppet.ReportData) worker {
+	return func(ctx context.Context, done chan any) {
+		reportRouter := mux.NewRouter()
+		reportRouter.Use(middleware.Prometheus)
+		reportRouter.Path("/").Methods(http.MethodPost).HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+			var report puppet.ReportData
+			decodeError := yaml.NewDecoder(request.Body).Decode(&report)
+			if decodeError != nil {
+				jsonstatus.Status{Code: http.StatusNotAcceptable, Message: fmt.Sprintf("Invalid report format %+q", decodeError)}.Encode(response)
+				sentry.CaptureException(decodeError)
+				return
+			}
+			messageChan <- report
+			jsonstatus.Status{Code: http.StatusAccepted, Message: "Report accepted"}.Encode(response)
+			return
+		})
+
+		reportServer := &http.Server{Addr: applicationInstance.settings.reportListenAddress, Handler: reportRouter}
+
+		log.Println("Starting report endpoint on", applicationInstance.settings.reportListenAddress)
+		go func() {
+			if err := reportServer.ListenAndServe(); err != nil {
+				log.Println(err)
+			}
+		}()
+		<-ctx.Done()
+		reportServer.Shutdown(context.Background())
 		done <- nil
 	}
 }
@@ -93,6 +128,36 @@ func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) work
 				}
 				app.nodeCacheLock.Unlock()
 				refreshNotify <- nil
+			}
+		}
+	}
+}
+
+func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet.ReportData) worker {
+	return func(ctx context.Context, done chan any) {
+		for {
+			select {
+			case <-ctx.Done():
+				done <- nil
+				return
+			case report := <-messageChan:
+				app.reportLogCache.Set(report.Host, report.Logs, 1*time.Hour)
+				for _, l := range puppet.Levels {
+					metrics.NodeLogEntries.With(prometheus.Labels{
+						metrics.LabelEnvironment: report.Environment,
+						metrics.LabelNode:        report.Host,
+						metrics.LabelLevel:       string(l),
+					}).Set(0)
+					for _, logEntry := range report.Logs {
+						if logEntry.Level == string(l) {
+							metrics.NodeLogEntries.With(prometheus.Labels{
+								metrics.LabelEnvironment: report.Environment,
+								metrics.LabelNode:        report.Host,
+								metrics.LabelLevel:       string(l),
+							}).Add(1)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -165,10 +230,16 @@ func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any
 
 var applicationInstance application
 
+const (
+	operationModePuppetDB   string = "puppetdb"
+	operationModeHTTPReport string = "http-report"
+)
+
 func init() {
 	app := kingpin.New(os.Args[0], "puppet-report-exporter")
 	app.Flag("web.listen-address", "Address to listen on for web interface and telemetry").Envar("WEB_LISTEN_ADDRESS").Default(":9115").StringVar(&applicationInstance.settings.webListenAddress)
-	app.Flag("mode", "Mode of operation.").Default("puppetdb").Envar("MODE").Hidden().EnumVar(&applicationInstance.settings.mode, "puppetdb", "http-report")
+	app.Flag("report.listen-address", "Address to listen on for report submission").Envar("REPORT_LISTEN_ADDRESS").Default(":9116").StringVar(&applicationInstance.settings.reportListenAddress)
+	app.Flag("mode", "Mode of operation.").Default("puppetdb").Envar("MODE").EnumVar(&applicationInstance.settings.mode, operationModePuppetDB, operationModeHTTPReport)
 	app.Flag("puppetdb.api-address", "Address of the PuppetDB API").Default("http://puppetdb:8081").Envar("PUPPETDB_URI").StringVar(&applicationInstance.settings.puppetdbApiAddress)
 	app.Flag("puppetdb.initial-fetch", "Fetch all nodes on startup").Default("false").BoolVar(&applicationInstance.settings.puppetdbInitialFetch)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -184,27 +255,34 @@ func main() {
 
 	workers := []worker{
 		applicationInstance.metricsListener,
+		applicationInstance.puppetdbReportLogCacheManager,
 	}
 
-	if applicationInstance.settings.mode == "puppetdb" {
+	// initialize cache
+	applicationInstance.reportLogCache = ttlcache.New[string, []puppet.ReportLogEntry](
+		ttlcache.WithTTL[string, []puppet.ReportLogEntry](10 * time.Minute),
+	)
+	go applicationInstance.reportLogCache.Start()
+	defer applicationInstance.reportLogCache.Stop()
+
+	switch applicationInstance.settings.mode {
+	case operationModePuppetDB:
 		nodeRefreshChan := make(chan any)
 		applicationInstance.puppetDb = puppet.NewApiClient(puppet.WithUrl(applicationInstance.settings.puppetdbApiAddress))
-
-		// initialize cache
-		applicationInstance.reportLogCache = ttlcache.New[string, []puppet.ReportLogEntry](
-			ttlcache.WithTTL[string, []puppet.ReportLogEntry](10 * time.Minute),
-		)
-		go applicationInstance.reportLogCache.Start()
-		defer applicationInstance.reportLogCache.Stop()
 
 		workers = append(workers, []worker{
 			applicationInstance.puppetdbNodesCrawlerBuilder(nodeRefreshChan),
 			applicationInstance.puppetdbLogMetricCollectorBuilder(nodeRefreshChan),
-			applicationInstance.puppetdbReportLogCacheManager,
 		}...)
-
-		log.Printf("Workers: %d", len(workers))
+	case operationModeHTTPReport:
+		messageChan := make(chan puppet.ReportData)
+		workers = append(workers, []worker{
+			applicationInstance.reportListenerBuilder(messageChan),
+			applicationInstance.httpReportMetricCollectorBuilder(messageChan),
+		}...)
 	}
+
+	log.Printf("Workers: %d", len(workers))
 
 	// capture input signals
 	workerContext, workerStop := context.WithCancel(context.Background())
