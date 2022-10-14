@@ -3,7 +3,7 @@ module github.com/bonsai-oss/puppet-report-exporter
 go 1.19
 
 require (
-	github.com/bonsai-oss/jsonstatus v0.0.1
+	github.com/bonsai-oss/jsonstatus v0.1.0
 	github.com/getsentry/sentry-go v0.14.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jellydator/ttlcache/v3 v3.0.0
@@ -24,7 +24,7 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0 // indirect
-	golang.org/x/sys v0.0.0-20221010170243-090e33056c14 // indirect
+	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
 	golang.org/x/text v0.3.8 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
