@@ -9,7 +9,8 @@ Currently, the following modes are supported:
 * `puppetdb`: Use PuppetDB to get the reports  
 Configure *plain http* puppetdb api access uri within `PUPPETDB_URI` environment variable or via cli parameter.
 
-* `http-report`: Use Puppets http report processor to get the reports
+* `http-report`: Use Puppets http report processor to get the reports  
+Configure the [reports](https://puppet.com/docs/puppet/7/configuration.html#reports) and [reporturl](https://puppet.com/docs/puppet/7/configuration.html#reporturl) settings in your puppet.conf.
 
 
 ```
