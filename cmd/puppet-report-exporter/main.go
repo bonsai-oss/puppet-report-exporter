@@ -45,6 +45,7 @@ type settings struct {
 }
 type worker func(ctx context.Context, done chan any)
 
+// metricsListener listens for metrics requests and serves them
 func (app *application) metricsListener(ctx context.Context, done chan any) {
 	metricsRouter := mux.NewRouter()
 	metricsRouter.Path("/").Methods(http.MethodGet).Handler(http.RedirectHandler("/metrics", http.StatusTemporaryRedirect))
@@ -59,6 +60,7 @@ func (app *application) metricsListener(ctx context.Context, done chan any) {
 	}
 }
 
+// reportListenerBuilder creates a worker listening for reports
 func (app *application) reportListenerBuilder(messageChan chan puppet.ReportData) worker {
 	return func(ctx context.Context, done chan any) {
 		reportRouter := mux.NewRouter()
@@ -90,6 +92,7 @@ func (app *application) reportListenerBuilder(messageChan chan puppet.ReportData
 	}
 }
 
+// puppetdbReportLogCacheManager creates a worker that processes cache metrics
 func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done chan any) {
 	metricUpdateTicker := time.NewTicker(2 * time.Second)
 	for {
@@ -104,6 +107,7 @@ func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done 
 	}
 }
 
+// puppetdbNodesCrawlerBuilder creates a worker that fetches puppet.Node from PuppetDB
 func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) worker {
 	return func(ctx context.Context, done chan any) {
 		nodeUpdateTicker := time.NewTicker(10 * time.Second)
@@ -133,6 +137,7 @@ func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) work
 	}
 }
 
+// httpReportMetricCollectorBuilder creates a worker that collects metrics from reports
 func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet.ReportData) worker {
 	return func(ctx context.Context, done chan any) {
 		for {
@@ -163,6 +168,7 @@ func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet
 	}
 }
 
+// puppetdbLogMetricCollectorBuilder creates a worker that collects metrics from puppetdb
 func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any) worker {
 	return func(ctx context.Context, done chan any) {
 		firstRun := app.settings.puppetdbInitialFetch
@@ -253,6 +259,7 @@ func main() {
 	sentry.Init(sentry.ClientOptions{TracesSampleRate: 1.0, Transport: sentry.NewHTTPSyncTransport()})
 	defer sentry.Flush(2 * time.Second)
 
+	// start metrics server and cache instrumentation
 	workers := []worker{
 		applicationInstance.metricsListener,
 		applicationInstance.puppetdbReportLogCacheManager,
@@ -265,6 +272,11 @@ func main() {
 	go applicationInstance.reportLogCache.Start()
 	defer applicationInstance.reportLogCache.Stop()
 
+	/*
+		Prepare dependencies and define workers depending on mode parameter.
+		Channels for worker communication must be given via builder functions.
+		Each worker is a separate goroutine which will be terminated when the context is cancelled.
+	*/
 	switch applicationInstance.settings.mode {
 	case operationModePuppetDB:
 		nodeRefreshChan := make(chan any)
