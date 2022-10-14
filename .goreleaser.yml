@@ -1,0 +1,51 @@
+---
+project_name: puppet-report-exporter
+
+release:
+  draft: false
+  github:
+    owner: bonsai-oss
+    name: puppet-report-exporter
+
+  name_template: 'Release {{.Tag}}'
+
+builds:
+  - id: transfer
+    main: .
+    binary: transfer
+    goos:
+      - darwin
+      - freebsd
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: freebsd
+        goarch: arm64
+
+archives:
+  - name_template: '{{.ProjectName}}-{{.Tag}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    wrap_in_directory: true
+    format: zip
+    files:
+      - README.md
+      - LICENSE
+  - name_template: '{{.ProjectName}}-{{.Tag}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    id: targz-archives
+    wrap_in_directory: true
+    format: tar.gz
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: '{{ .ProjectName }}-v{{ .Version }}-checksums.txt'
+
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
+
+github_urls:
+  download: https://github.com
+
+dist: dist
