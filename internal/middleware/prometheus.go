@@ -1,11 +1,13 @@
 package middleware
 
 import (
-	"github.com/bonsai-oss/puppet-report-exporter/internal/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/bonsai-oss/puppet-report-exporter/internal/metrics"
 )
 
 func newResponseWriter(w http.ResponseWriter) *responseWriter {
