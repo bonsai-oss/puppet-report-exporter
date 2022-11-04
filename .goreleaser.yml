@@ -10,9 +10,9 @@ release:
   name_template: 'Release {{.Tag}}'
 
 builds:
-  - id: transfer
-    main: .
-    binary: transfer
+  - dir: .
+    main: ./cmd/puppet-report-exporter/
+    binary: puppet-report-exporter
     goos:
       - darwin
       - freebsd
@@ -20,9 +20,12 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: freebsd
-        goarch: arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+    flags:
+      - -trimpath
 
 archives:
   - name_template: '{{.ProjectName}}-{{.Tag}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
