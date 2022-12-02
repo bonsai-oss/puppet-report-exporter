@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/bonsai-oss/jsonstatus v0.1.0
-	github.com/getsentry/sentry-go v0.14.0
+	github.com/getsentry/sentry-go v0.15.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jellydator/ttlcache/v3 v3.0.0
 	github.com/prometheus/client_golang v1.13.1
