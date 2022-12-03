@@ -12,7 +12,7 @@ jobs:
         with:
           path: src/github.com/bonsai-oss/puppet-report-exporter
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: 1.19
       - name: Release
