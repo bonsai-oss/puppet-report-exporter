@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bonsai-oss/jsonstatus"
+	"github.com/bonsai-oss/workering/v2"
 	"github.com/getsentry/sentry-go"
 	"github.com/gorilla/mux"
 	"github.com/jellydator/ttlcache/v3"
@@ -46,7 +47,7 @@ type settings struct {
 type worker func(ctx context.Context, done chan any)
 
 // metricsListener listens for metrics requests and serves them
-func (app *application) metricsListener(ctx context.Context, done chan any) {
+func (app *application) metricsListener(ctx context.Context, done chan<- any) {
 	metricsRouter := mux.NewRouter()
 	metricsRouter.Path("/").Methods(http.MethodGet).Handler(http.RedirectHandler("/metrics", http.StatusTemporaryRedirect))
 	metricsRouter.Path("/metrics").Methods(http.MethodGet).Handler(promhttp.Handler())
@@ -61,8 +62,8 @@ func (app *application) metricsListener(ctx context.Context, done chan any) {
 }
 
 // reportListenerBuilder creates a worker listening for reports
-func (app *application) reportListenerBuilder(messageChan chan puppet.ReportData) worker {
-	return func(ctx context.Context, done chan any) {
+func (app *application) reportListenerBuilder(messageChan chan puppet.ReportData) workering.WorkerFunction {
+	return func(ctx context.Context, done chan<- any) {
 		reportRouter := mux.NewRouter()
 		reportRouter.Use(middleware.Prometheus)
 		reportRouter.Path("/").Methods(http.MethodPost).HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
@@ -93,7 +94,7 @@ func (app *application) reportListenerBuilder(messageChan chan puppet.ReportData
 }
 
 // puppetdbReportLogCacheManager creates a worker that processes cache metrics
-func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done chan any) {
+func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done chan<- any) {
 	metricUpdateTicker := time.NewTicker(2 * time.Second)
 	for {
 		select {
@@ -108,8 +109,8 @@ func (app *application) puppetdbReportLogCacheManager(ctx context.Context, done 
 }
 
 // puppetdbNodesCrawlerBuilder creates a worker that fetches puppet.Node from PuppetDB
-func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) worker {
-	return func(ctx context.Context, done chan any) {
+func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) workering.WorkerFunction {
+	return func(ctx context.Context, done chan<- any) {
 		nodeUpdateTicker := time.NewTicker(10 * time.Second)
 		for {
 			select {
@@ -138,8 +139,8 @@ func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) work
 }
 
 // httpReportMetricCollectorBuilder creates a worker that collects metrics from reports
-func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet.ReportData) worker {
-	return func(ctx context.Context, done chan any) {
+func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet.ReportData) workering.WorkerFunction {
+	return func(ctx context.Context, done chan<- any) {
 		for {
 			select {
 			case <-ctx.Done():
@@ -169,8 +170,8 @@ func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet
 }
 
 // puppetdbLogMetricCollectorBuilder creates a worker that collects metrics from puppetdb
-func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any) worker {
-	return func(ctx context.Context, done chan any) {
+func (app *application) puppetdbLogMetricCollectorBuilder(refreshNotify chan any) workering.WorkerFunction {
+	return func(ctx context.Context, done chan<- any) {
 		firstRun := app.settings.puppetdbInitialFetch
 		for {
 			select {
@@ -260,10 +261,14 @@ func main() {
 	defer sentry.Flush(2 * time.Second)
 
 	// start metrics server and cache instrumentation
-	workers := []worker{
-		applicationInstance.metricsListener,
-		applicationInstance.puppetdbReportLogCacheManager,
-	}
+	workering.Register(
+		workering.RegisterSet{
+			Name:   "metricsListener",
+			Worker: applicationInstance.metricsListener},
+		workering.RegisterSet{
+			Name:   "reportLogCacheManager",
+			Worker: applicationInstance.puppetdbReportLogCacheManager},
+	)
 
 	// initialize cache
 	applicationInstance.reportLogCache = ttlcache.New[string, []puppet.ReportLogEntry](
@@ -282,43 +287,42 @@ func main() {
 		nodeRefreshChan := make(chan any)
 		applicationInstance.puppetDb = puppet.NewApiClient(puppet.WithUrl(applicationInstance.settings.puppetdbApiAddress))
 
-		workers = append(workers, []worker{
-			applicationInstance.puppetdbNodesCrawlerBuilder(nodeRefreshChan),
-			applicationInstance.puppetdbLogMetricCollectorBuilder(nodeRefreshChan),
-		}...)
+		workering.Register(
+			workering.RegisterSet{
+				Name:   "puppetdbNodesCrawler",
+				Worker: applicationInstance.puppetdbNodesCrawlerBuilder(nodeRefreshChan)},
+			workering.RegisterSet{
+				Name:   "puppetdbLogMetricCollector",
+				Worker: applicationInstance.puppetdbLogMetricCollectorBuilder(nodeRefreshChan)},
+		)
 	case operationModeHTTPReport:
 		messageChan := make(chan puppet.ReportData)
-		workers = append(workers, []worker{
-			applicationInstance.reportListenerBuilder(messageChan),
-			applicationInstance.httpReportMetricCollectorBuilder(messageChan),
-		}...)
+
+		workering.Register(
+			workering.RegisterSet{
+				Name:   "reportListener",
+				Worker: applicationInstance.reportListenerBuilder(messageChan)},
+			workering.RegisterSet{
+				Name:   "httpReportMetricCollector",
+				Worker: applicationInstance.httpReportMetricCollectorBuilder(messageChan)},
+		)
 	}
 
-	log.Printf("Workers: %d", len(workers))
-
 	// capture input signals
-	workerContext, workerStop := context.WithCancel(context.Background())
-	workerDone := make(chan any)
 	workerSignal := make(chan os.Signal, 1)
 	signal.Notify(workerSignal, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
-	workersRunning := 0
-
-	for _, worker := range workers {
-		go worker(workerContext, workerDone)
-		workersRunning++
+	if workerStartError := workering.StartAll(); workerStartError != nil {
+		log.Fatal(workerStartError)
 	}
 
 	<-workerSignal
 	log.Println("Shutting down...")
-	applicationInstance.metricServer.Shutdown(workerContext)
 
-	workerStop()
-	for range workerDone {
-		workersRunning--
-		if workersRunning == 0 {
-			break
-		}
+	applicationInstance.metricServer.Shutdown(context.Background())
+
+	if workerStopError := workering.StopAll(); workerStopError != nil {
+		log.Fatal(workerStopError)
 	}
 	log.Println("Done.")
 }
