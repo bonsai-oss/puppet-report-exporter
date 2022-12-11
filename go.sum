@@ -53,6 +53,8 @@ github.com/bonsai-oss/workering/v2 v2.1.0 h1:pKbX7Q0VmMC6+d57NBMGzXGY/nkOPRQeqcH
 github.com/bonsai-oss/workering/v2 v2.1.0/go.mod h1:CNMv+V43gvX0dSLpFDiziSK78kMABDnKInlqUcMiZvg=
 github.com/bonsai-oss/workering/v2 v2.1.1 h1:PNZHLcfZ53uXDwAV2h9SEUD236ONLxR6/aDWsoj4XYc=
 github.com/bonsai-oss/workering/v2 v2.1.1/go.mod h1:CNMv+V43gvX0dSLpFDiziSK78kMABDnKInlqUcMiZvg=
+github.com/bonsai-oss/workering/v2 v2.1.2 h1:9cOmh1rzRWhUF8lkJ9PEOn7htMl06wA2bSqKiMbRJmw=
+github.com/bonsai-oss/workering/v2 v2.1.2/go.mod h1:jdG46HD9QgLe5EaXUC0rK9Y8CK0Fld6Y49Mbpj/RsuE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
