@@ -7,7 +7,7 @@ require (
 	github.com/bonsai-oss/workering/v2 v2.1.2
 	github.com/getsentry/sentry-go v0.16.0
 	github.com/gorilla/mux v1.8.0
-	github.com/jellydator/ttlcache/v3 v3.0.0
+	github.com/jellydator/ttlcache/v3 v3.0.1
 	github.com/prometheus/client_golang v1.14.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/yaml.v3 v3.0.1
