@@ -5,11 +5,11 @@ go 1.19
 require (
 	github.com/bonsai-oss/jsonstatus v0.1.0
 	github.com/bonsai-oss/workering/v2 v2.1.2
-	github.com/getsentry/sentry-go v0.18.0
+	github.com/getsentry/sentry-go v0.19.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jellydator/ttlcache/v3 v3.0.1
 	github.com/prometheus/client_golang v1.14.0
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	gopkg.in/alecthomas/kingpin.v2 v2.3.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
