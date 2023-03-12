@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/bonsai-oss/jsonstatus"
 	"github.com/bonsai-oss/workering/v2"
 	"github.com/getsentry/sentry-go"
@@ -18,7 +19,6 @@ import (
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v3"
 
 	"github.com/bonsai-oss/puppet-report-exporter/internal/metrics"
