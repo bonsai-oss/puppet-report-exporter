@@ -9,7 +9,7 @@ require (
 	github.com/getsentry/sentry-go v0.20.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jellydator/ttlcache/v3 v3.0.1
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
