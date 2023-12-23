@@ -3,12 +3,12 @@ module github.com/bonsai-oss/puppet-report-exporter
 go 1.19
 
 require (
-	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/bonsai-oss/jsonstatus v0.1.0
 	github.com/bonsai-oss/workering/v2 v2.1.4
 	github.com/getsentry/sentry-go v0.25.0
-	github.com/gorilla/mux v1.8.0
-	github.com/jellydator/ttlcache/v3 v3.1.0
+	github.com/gorilla/mux v1.8.1
+	github.com/jellydator/ttlcache/v3 v3.1.1
 	github.com/prometheus/client_golang v1.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
