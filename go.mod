@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/bonsai-oss/jsonstatus v0.1.0
 	github.com/bonsai-oss/workering/v2 v2.1.5
-	github.com/getsentry/sentry-go v0.25.0
+	github.com/getsentry/sentry-go v0.26.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jellydator/ttlcache/v3 v3.1.1
 	github.com/prometheus/client_golang v1.18.0
