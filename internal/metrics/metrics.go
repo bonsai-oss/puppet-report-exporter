@@ -8,6 +8,7 @@ func init() {
 	// Register the metrics to prometheus.
 	prometheus.MustRegister(
 		NodeCount,
+		NodeStatus,
 		NodeLogEntries,
 		PuppetDBReportCacheEntries,
 		PuppetDBReportCacheAccess,
@@ -36,6 +37,19 @@ var (
 		},
 		[]string{
 			LabelEnvironment,
+		},
+	)
+
+	NodeStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "puppet",
+			Subsystem: "report_exporter",
+			Name:      "node_status",
+			Help:      "Report status of nodes; 0 = undefined, 1 = changed, 2 = failed, 3 = unchanged",
+		},
+		[]string{
+			LabelEnvironment,
+			LabelNode,
 		},
 	)
 

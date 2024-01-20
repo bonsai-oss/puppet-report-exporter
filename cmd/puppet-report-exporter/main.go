@@ -129,7 +129,13 @@ func (app *application) puppetdbNodesCrawlerBuilder(refreshNotify chan any) work
 				app.nodeCache = nodes
 				metrics.NodeCount.Reset()
 				for _, node := range nodes {
-					metrics.NodeCount.With(prometheus.Labels{metrics.LabelEnvironment: node.CatalogEnvironment}).Add(1)
+					metrics.NodeCount.With(prometheus.Labels{
+						metrics.LabelEnvironment: node.CatalogEnvironment,
+					}).Add(1)
+					metrics.NodeStatus.With(prometheus.Labels{
+						metrics.LabelEnvironment: node.CatalogEnvironment,
+						metrics.LabelNode:        node.Certname,
+					}).Set(float64(node.LatestReportStatus.ToNumeric()))
 				}
 				app.nodeCacheLock.Unlock()
 				refreshNotify <- nil
@@ -148,6 +154,12 @@ func (app *application) httpReportMetricCollectorBuilder(messageChan chan puppet
 				return
 			case report := <-messageChan:
 				app.reportLogCache.Set(report.Host, report.Logs, 1*time.Hour)
+
+				metrics.NodeStatus.With(prometheus.Labels{
+					metrics.LabelEnvironment: report.Environment,
+					metrics.LabelNode:        report.Host,
+				}).Set(float64(report.Status.ToNumeric()))
+
 				for _, l := range puppet.Levels {
 					metrics.NodeLogEntries.With(prometheus.Labels{
 						metrics.LabelEnvironment: report.Environment,
