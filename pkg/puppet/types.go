@@ -8,25 +8,46 @@ type ReportData struct {
 	Host        string           `yaml:"host"`
 	Logs        []ReportLogEntry `yaml:"logs"`
 	Environment string           `yaml:"environment"`
+	Status      ReportStatus     `yaml:"status"`
+}
+
+type ReportStatus string
+
+const (
+	ReportStatusChanged   ReportStatus = "changed"
+	ReportStatusFailed    ReportStatus = "failed"
+	ReportStatusUnchanged ReportStatus = "unchanged"
+)
+
+func (s ReportStatus) ToNumeric() uint8 {
+	switch s {
+	case ReportStatusChanged:
+		return 1
+	case ReportStatusFailed:
+		return 2
+	case ReportStatusUnchanged:
+		return 3
+	}
+	return 0
 }
 
 type Node struct {
-	Deactivated                  interface{} `json:"deactivated"`
-	LatestReportHash             string      `json:"latest_report_hash"`
-	FactsEnvironment             string      `json:"facts_environment"`
-	CachedCatalogStatus          string      `json:"cached_catalog_status"`
-	ReportEnvironment            string      `json:"report_environment"`
-	LatestReportCorrectiveChange interface{} `json:"latest_report_corrective_change"`
-	CatalogEnvironment           string      `json:"catalog_environment"`
-	FactsTimestamp               time.Time   `json:"facts_timestamp"`
-	LatestReportNoop             bool        `json:"latest_report_noop"`
-	Expired                      interface{} `json:"expired"`
-	LatestReportNoopPending      bool        `json:"latest_report_noop_pending"`
-	ReportTimestamp              time.Time   `json:"report_timestamp"`
-	Certname                     string      `json:"certname"`
-	CatalogTimestamp             time.Time   `json:"catalog_timestamp"`
-	LatestReportJobId            interface{} `json:"latest_report_job_id"`
-	LatestReportStatus           string      `json:"latest_report_status"`
+	Deactivated                  interface{}  `json:"deactivated"`
+	LatestReportHash             string       `json:"latest_report_hash"`
+	FactsEnvironment             string       `json:"facts_environment"`
+	CachedCatalogStatus          string       `json:"cached_catalog_status"`
+	ReportEnvironment            string       `json:"report_environment"`
+	LatestReportCorrectiveChange interface{}  `json:"latest_report_corrective_change"`
+	CatalogEnvironment           string       `json:"catalog_environment"`
+	FactsTimestamp               time.Time    `json:"facts_timestamp"`
+	LatestReportNoop             bool         `json:"latest_report_noop"`
+	Expired                      interface{}  `json:"expired"`
+	LatestReportNoopPending      bool         `json:"latest_report_noop_pending"`
+	ReportTimestamp              time.Time    `json:"report_timestamp"`
+	Certname                     string       `json:"certname"`
+	CatalogTimestamp             time.Time    `json:"catalog_timestamp"`
+	LatestReportJobId            interface{}  `json:"latest_report_job_id"`
+	LatestReportStatus           ReportStatus `json:"latest_report_status"`
 }
 
 // ReportLogEntry - representation of https://puppet.com/docs/puppet/7/format_report.html#format_report-puppet-util-log
