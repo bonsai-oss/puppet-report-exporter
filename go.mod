@@ -7,7 +7,7 @@ toolchain go1.23.4
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/bonsai-oss/jsonstatus v0.1.0
-	github.com/bonsai-oss/workering/v2 v2.1.7
+	github.com/bonsai-oss/workering/v2 v2.1.8
 	github.com/getsentry/sentry-go v0.30.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jellydator/ttlcache/v3 v3.3.0
